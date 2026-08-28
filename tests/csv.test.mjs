@@ -33,7 +33,8 @@ const hash16 = (s) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 // aislar un bloque autocontenido. Se congela la funcion COMPLETA; ver
 // tests/validacion.test.mjs para el mismo invariante, que es donde vive la
 // version canonica de esta comprobacion.
-const HASH_EXPORT_PASO6 = '3124080501cd1f02c58be9ba3767f20d';
+// Actualizado: clNormalizeEbaySizeValue agregado para normalizar 2XB -> Big 2X en CSV eBay
+const HASH_EXPORT_PASO6 = '704c71938915f7eacd045ba50b873d47';
 
 // CSV antiguo del lote de referencia LOTE_VIEJO, generado por el PASO 4.
 const CSV_LEGACY_REF = 'e121a37e0d1e52d4';          // actualizado: descripcion neutral sin frases prohibidas
@@ -521,5 +522,64 @@ describe('ConditionID', () => {
     assert.equal(/default/i.test(m), false);
     const fn = extraerFn(APP, 'clCsvRowV134');
     assert.equal(/CL_CONDITION_IDS\[[^\]]*\]\s*\|\|/.test(fn), false, 'se aplica un fallback al leerlo');
+  });
+});
+
+// ── 10. Normalización de talla eBay (categoría 15689 - Men's Shorts) ─────────
+describe('Normalización de talla eBay', () => {
+  test('clNormalizeEbaySizeValue existe y convierte 2XB a Big 2X', () => {
+    assert.match(APP, /function clNormalizeEbaySizeValue\(/);
+    assert.match(APP, /\'2XB\':\s*\'Big 2X\'/);
+  });
+
+  test('Categoría 15689 (Men\'s Shorts): C:Size = Big 2X se mantiene en CSV', async () => {
+    const p = await uno('15689', { 'Brand': 'Nike', 'Department': 'Men', 'Size': 'Big 2X',
+      'Size Type': 'Big & Tall', 'Color': 'Black', 'Style': 'Bermuda' });
+    const f = p.filas[0];
+    // En el CSV exportado, C:Size debe ser Big 2X (el valor oficial de eBay)
+    assert.equal(f['*C:Size'] ?? f['C:Size'], 'Big 2X', 'C:Size debe ser Big 2X en CSV');
+  });
+
+  test('Tamaño L se mantiene sin cambios en CSV', async () => {
+    const p = await uno('15689', { 'Brand': 'Nike', 'Department': 'Men', 'Size': 'L',
+      'Size Type': 'Regular', 'Color': 'Black', 'Style': 'Bermuda' });
+    const f = p.filas[0];
+    assert.equal(f['*C:Size'] ?? f['C:Size'], 'L', 'L debe pasar sin cambios');
+  });
+
+  test('La función clNormalizeEbaySizeValue aplica solo en contexto de CSV, no en validación', () => {
+    // Esta es una garantía de bajo nivel: la normalización ocurre al armar el CSV,
+    // no durante la validación. El aspecto '2XB' no será validado por eBay,
+    // pero si internamente se guardara y se exportara, se normalizaría a 'Big 2X'.
+    assert.match(APP, /clNormalizeEbaySizeValue\(r\.size\)/);
+  });
+
+  test('El título puede contener 2XB internamente sin problemas de exportación', async () => {
+    const p = await uno('15689', { 'Brand': 'Nike', 'Department': 'Men', 'Size': 'L',
+      'Size Type': 'Regular', 'Color': 'Black', 'Style': 'Bermuda' },
+      { title: 'Shorts Nike L Talla 2XB Negro' });
+    const f = p.filas[0];
+    assert.ok(f['*Title'].includes('2XB'), 'El título puede mencionar 2XB');
+    assert.equal(f['*C:Size'] ?? f['C:Size'], 'L', 'Pero C:Size usa el valor valido oficial');
+  });
+
+  test('El SKU puede contener 2XB sin afectar el CSV', async () => {
+    const p = await uno('15689', { 'Brand': 'Nike', 'Department': 'Men', 'Size': 'L',
+      'Size Type': 'Regular', 'Color': 'Black', 'Style': 'Bermuda' },
+      { sku: 'CLO-NKE-2XB-BLK' });
+    const f = p.filas[0];
+    assert.ok(f['CustomLabel'].includes('CLO-NKE-2XB-BLK') || f['CustomLabel'] === 'CLO-NKE-2XB-BLK',
+      'El SKU en CustomLabel puede mantener 2XB');
+    assert.equal(f['*C:Size'] ?? f['C:Size'], 'L', 'C:Size sigue siendo el valor válido');
+  });
+
+  test('El resto de columnas no cambian (Brand, Department, Color, Style permanecen intactos)', async () => {
+    const p = await uno('15689', { 'Brand': 'Nike', 'Department': 'Men', 'Size': 'Big 2X',
+      'Size Type': 'Big & Tall', 'Color': 'Black', 'Style': 'Bermuda' });
+    const f = p.filas[0];
+    assert.equal(f['*C:Brand'] ?? f['C:Brand'], 'Nike');
+    assert.equal(f['*C:Department'] ?? f['C:Department'], 'Men');
+    assert.equal(f['*C:Color'] ?? f['C:Color'], 'Black');
+    assert.equal(f['*C:Style'] ?? f['C:Style'], 'Bermuda');
   });
 });

@@ -4352,6 +4352,33 @@ function clBuildConditionText(condition) {
 }
 
 /**
+/**
+ * clNormalizeEbaySizeValue – Normalize size value for eBay export CSV
+ * eBay auto-converts custom sizes (2XB) to standard sizes (Big 2X) and warns.
+ * We normalize BEFORE sending to prevent eBay modification warning.
+ * Affects ONLY the exported CSV value, not internal data or display.
+ *
+ * Evidence: ItemID 237035832821, Category 15689 (Men's Shorts)
+ * - Sent: C:Size = 2XB
+ * - eBay changed to: C:Size = Big 2X
+ * - WarningCode: 21920277|21920466
+ *
+ * @param {string} size - Internal size value (e.g., "2XB")
+ * @returns {string} Normalized size for eBay export (e.g., "Big 2X")
+ */
+function clNormalizeEbaySizeValue(size) {
+  if (!size || typeof size !== 'string') return size;
+
+  // Normalize internal size to eBay standard size for CSV export only
+  // Based on confirmed eBay auto-conversion from real item 237035832821
+  const sizeMap = {
+    '2XB': 'Big 2X'
+  };
+
+  return sizeMap[size.trim()] || size;
+}
+
+/**
  * Construye el objeto de medidas/campos para CSV exportación.
  * Valida cada campo de forma independiente y usa defaults eBay si es necesario.
  * @param {object} record - Objeto con propiedades: inseam, dressLength, outerMaterial, activity, shoeWidth
@@ -8130,7 +8157,7 @@ function clExportEbayCSV() {
     var measures = clBuildCsvMeasurements(r, { needsInseam, needsDressLen, needsOuter, needsActivity, needsWidth });
     lines.push([
       'Add',r.sku||'',r.categoryId||'63861',r.title||'',r.conditionId||'1000',
-      r.brand||'',r.sizeType||'Regular',r.size||'',r.department||'',asp(r.color),
+      r.brand||'',r.sizeType||'Regular',clNormalizeEbaySizeValue(r.size)||'',r.department||'',asp(r.color),
       asp(r.style),asp(r.type),
       measures.inseam,
       measures.dressLength,

@@ -29,7 +29,8 @@ const LS = (s) => s.match(/localStorage\.[a-zA-Z]+\([^)]*\)/g) || [];
 // autocontenido del resto sin cambiar el comportamiento. A partir de aqui se
 // congela la funcion COMPLETA como una sola unidad: cualquier cambio futuno
 // que no sea un nuevo paso explicitamente autorizado debe mover este hash.
-const HASH_EXPORT_PASO6 = '3124080501cd1f02c58be9ba3767f20d';
+// Actualizado: clNormalizeEbaySizeValue agregado para normalizar 2XB -> Big 2X en CSV eBay
+const HASH_EXPORT_PASO6 = '704c71938915f7eacd045ba50b873d47';
 const HASH_LOCALSTORAGE = '45f3a78851ca0c8bd831b86c9d105ab4';   // 83 calls without artificial getItem, ordenadas
 const HASH_LS_ESCRITURAS = 'dc3f62940456fea8dfd738452761de27';  // 26 escrituras (no artificial getItem), ordenadas
 
