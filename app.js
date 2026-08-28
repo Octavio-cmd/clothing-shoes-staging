@@ -4118,46 +4118,10 @@ async function removeBackgroundPixian(dataUrl) {
 }
 
 async function clRemoveBackground(dataUrl) {
-  console.log('🎬 Clothing background removal: Railway rembg');
-  
-  try {
-    const RAILWAY_API = 'https://savvy-rembg-production.up.railway.app/remove-bg';
-    const b64 = dataUrl.split(',')[1]; // Extrae solo la parte base64
-    
-    if (!b64) {
-      clShowBgStatus('❌ Invalid image data', 'var(--dw)');
-      return null;
-    }
-    
-    clShowBgStatus('⏳ Processing with rembg...', 'var(--ac)');
-    
-    const response = await fetch(RAILWAY_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ image: b64 })
-    });
-    
-    if (!response.ok) {
-      clShowBgStatus('❌ Railway API error: ' + response.status, 'var(--dw)');
-      return null;
-    }
-    
-    const data = await response.json();
-    
-    if (data.success && data.image) {
-      clShowBgStatus('✅ Railway rembg — Background removed!', 'var(--sv)');
-      return 'data:image/png;base64,' + data.image;
-    } else {
-      clShowBgStatus('❌ Rembg processing failed', 'var(--dw)');
-      return null;
-    }
-  } catch(error) {
-    console.error('Railway remove-bg error:', error);
-    clShowBgStatus('❌ Error: ' + error.message, 'var(--dw)');
-    return null;
-  }
+  // STAGING: no existe un endpoint remove-bg compatible. No se permite
+  // recurrir silenciosamente al servicio de produccion.
+  clShowBgStatus('⚠️ Remove background is unavailable in staging.', 'var(--dw)');
+  return null;
 }
 
 function clSaveRbgKey() {
@@ -4452,8 +4416,8 @@ async function clLookupBarcode(upc) {
   resultDiv.innerHTML = '<span style="color:var(--mu)">🔍 Searching for UPC ' + upc + '...</span>';
 
   try {
-    // Llamar al endpoint /search-upc en Railway
-    const RAILWAY_URL = 'https://savvy-ebay-prices-production.up.railway.app';
+    // Llamar al endpoint /search-upc en SAVVY_API staging
+    const RAILWAY_URL = SAVVY_API;
     const res = await fetch(`${RAILWAY_URL}/search-upc?upc=${encodeURIComponent(upc)}`);
 
     if (!res.ok) {
@@ -4605,14 +4569,14 @@ async function clLookupEbayURL(urlStr) {
   resultDiv.style.display = 'block';
   resultDiv.innerHTML = '<span style="color:var(--mu)">🔗 Resolving eBay URL...</span>';
 
-  var RAILWAY_URL = 'https://savvy-ebay-prices-production.up.railway.app';
+  var RAILWAY_URL = SAVVY_API;  // Usar SAVVY_API staging (fallback local si /resolve-url no existe)
   var itemId = null;
 
   // Detectar si es short link (ebay.io) — resolverlo via Railway
   var isShortLink = urlStr.includes('ebay.io') || urlStr.includes('ebay.com/itm') === false && !urlStr.match(/\d{10,13}/);
 
   if (urlStr.includes('ebay.io') || !urlStr.match(/\/itm\//) ) {
-    // Es un short link o no tiene /itm/ — resolver via Railway
+    // Es un short link o no tiene /itm/ — intentar resolver via SAVVY_API (fallback local si falla)
     try {
       resultDiv.innerHTML = '<span style="color:var(--mu)">🔗 Resolving short link via server...</span>';
       var resolveRes = await fetch(RAILWAY_URL + '/resolve-url?url=' + encodeURIComponent(urlStr));
@@ -6036,8 +6000,8 @@ async function getClothingPrice() {
 
   try {
     const query = `${cl.brand} ${cl.category} ${cl.color || ''}`.trim();
-    const url = `https://savvy-ebay-prices-production.up.railway.app/search?q=${encodeURIComponent(query)}&size=${encodeURIComponent(cl.size)}`;
-    
+    const url = `${SAVVY_API}/ebay-search?q=${encodeURIComponent(query)}&size=${encodeURIComponent(cl.size)}`;
+
     const response = await fetch(url, { method: 'GET' });
     const data = await response.json();
 

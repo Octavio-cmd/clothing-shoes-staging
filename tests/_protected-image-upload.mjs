@@ -61,7 +61,7 @@ export function crearSandbox(APP, opciones) {
     FormData: FakeFormData,
     JSON, Math, String, Number, Array, Object, Date, Promise,
     parseFloat, parseInt, isFinite, isNaN, RegExp,
-    SAVVY_API: 'https://savvy-ebay-prices-production.up.railway.app',
+    SAVVY_API: 'https://ample-imagination-clothing-staging.up.railway.app',
     CL_SHIP_POLICY: 'SHIP',
     CL_RET_POLICY: 'RET',
     CL_PAY_POLICY: 'PAY',

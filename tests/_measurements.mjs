@@ -273,7 +273,7 @@ export function crearSandboxMeasurements(APP, opciones) {
         }
       }
     },
-    SAVVY_API: 'https://savvy-ebay-prices-production.up.railway.app',
+    SAVVY_API: 'https://ample-imagination-clothing-staging.up.railway.app',
     SAVVY_MODELO: 'claude-haiku-4-5-20251001',
     sessionStorage: {
       getItem(k) { return sstore[k] === undefined ? null : sstore[k]; },
