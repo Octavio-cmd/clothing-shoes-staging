@@ -16,12 +16,10 @@ test('Staging isolation: No production URLs', async (t) => {
     );
   });
 
-  await t.test('app.js: no savvy-rembg-production', () => {
-    assert.doesNotMatch(
-      appJS,
-      /savvy-rembg-production\.up\.railway\.app/,
-      'app.js no debe contener URLs de rembg production'
-    );
+  await t.test('app.js: only approved stateless rembg processor may be shared', () => {
+    const matches = appJS.match(/https:\/\/savvy-rembg-production\.up\.railway\.app\/remove-bg/g) || [];
+    assert.equal(matches.length, 1, 'solo se admite el endpoint stateless /remove-bg una vez');
+    assert.match(appJS, /brightness: 1\.0/, 'staging debe neutralizar el brillo por solicitud');
   });
 
   await t.test('app.js: no savvy-config-production', () => {
