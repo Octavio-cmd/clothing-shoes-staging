@@ -27,11 +27,11 @@ test('photo pipeline — gives mobile canvas enough time and preserves fallback'
   assert.match(fn, /fallbackUrl=dataUrl/);
 });
 
-test('photo pipeline — requests compact JPEG but accepts JPEG or PNG responses', () => {
+test('photo pipeline — requests transparent PNG and accepts JPEG or PNG responses', () => {
   const start = app.indexOf('function clTakePhoto');
   const end = app.indexOf('function clCompressImage', start);
   const fn = app.slice(start, end);
-  assert.match(fn, /format: 'jpeg', quality: 92/);
+  assert.match(fn, /format: 'png'/);
   assert.match(fn, /result\.mime === 'image\/jpeg'/);
   assert.match(fn, /'image\/png'/);
   assert.match(fn, /applyWhiteSquare\(processedUrl, 1600, dataUrl\)/);
@@ -53,7 +53,17 @@ test('photo UI — previews preserve the entire garment or shoe', () => {
 });
 
 test('photo deployment — app.js cache key is bumped for employee devices', () => {
-  assert.match(html, /app\.js\?v=20261121-photo-fix-02/);
+  assert.match(html, /app\.js\?v=20261121-photo-fix-03/);
+});
+
+test('photo pipeline — cleans semi-transparent background halo before white composite', () => {
+  const start = app.indexOf('function applyWhiteSquare');
+  const end = app.indexOf('function clTakePhoto', start);
+  const fn = app.slice(start, end);
+  assert.match(fn, /if \(a <= 51\) px\[i\] = 0/);
+  assert.match(fn, /else if \(a >= 204\) px\[i\] = 255/);
+  assert.match(fn, /tmpCtx\.putImageData\(imageData, 0, 0\)/);
+  assert.match(fn, /ctx\.drawImage\(tmp,/);
 });
 
 test('photo compression — high-quality smoothing is enabled', () => {
