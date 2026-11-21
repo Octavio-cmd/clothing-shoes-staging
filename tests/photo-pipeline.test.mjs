@@ -53,7 +53,7 @@ test('photo UI — previews preserve the entire garment or shoe', () => {
 });
 
 test('photo deployment — app.js cache key is bumped for employee devices', () => {
-  assert.match(html, /app\.js\?v=20261121-photo-fix-01/);
+  assert.match(html, /app\.js\?v=20261121-photo-fix-02/);
 });
 
 test('photo compression — high-quality smoothing is enabled', () => {
@@ -62,4 +62,8 @@ test('photo compression — high-quality smoothing is enabled', () => {
   const fn = app.slice(start, end);
   assert.match(fn, /imageSmoothingEnabled = true/);
   assert.match(fn, /imageSmoothingQuality = 'high'/);
+  assert.match(fn, /Image compression timeout/);
+  assert.match(fn, /reader\.onerror = \(\) => finish\(null\)/);
+  assert.match(fn, /reader\.onabort = \(\) => finish\(null\)/);
+  assert.match(fn, /img\.onerror = \(\) => finish\(null\)/);
 });
