@@ -5819,13 +5819,13 @@ function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl) {
         // El modelo de rembg deja una franja de pixeles semitransparentes que
         // conserva color del fondo original (gris, alfombra, mesa, etc.). Al
         // componerla sobre blanco esa franja se ve como un halo borroso.
-        // Reasignar alpha 20%-80% conserva el antialiasing fino, pero elimina
-        // el fondo contaminado sin cortar tela, costuras ni mangas.
+        // Reasignar alpha 35%-65% conserva un borde de antialiasing estrecho,
+        // pero elimina la ultima linea gris sin cortar tela, costuras ni mangas.
         for (let i=3; i<px.length; i+=4) {
           const a = px[i];
-          if (a <= 51) px[i] = 0;
-          else if (a >= 204) px[i] = 255;
-          else px[i] = Math.round((a - 51) * 255 / 153);
+          if (a <= 89) px[i] = 0;
+          else if (a >= 166) px[i] = 255;
+          else px[i] = Math.round((a - 89) * 255 / 77);
         }
         tmpCtx.putImageData(imageData, 0, 0);
         
