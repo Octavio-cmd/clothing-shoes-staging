@@ -5841,16 +5841,27 @@ function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl) {
           }
         }
 
-        // El modelo de rembg deja una franja de pixeles semitransparentes que
-        // conserva color del fondo original (gris, alfombra, mesa, etc.). Al
-        // componerla sobre blanco esa franja se ve como un halo borroso.
-        // Reasignar alpha 35%-65% conserva un borde de antialiasing estrecho,
-        // pero elimina la ultima linea gris sin cortar tela, costuras ni mangas.
+        // El modelo de rembg deja transparencia parcial tanto en el contorno
+        // como, en productos blancos, dentro del propio articulo. La limpieza
+        // firme funciona para prendas oscuras, pero en zapatos blancos puede
+        // convertir esas zonas interiores en huecos. Para productos claros se
+        // usa una mascara suave y se neutraliza el color del borde hacia blanco.
         for (let i=3; i<px.length; i+=4) {
           const a = px[i];
-          if (a <= 89) px[i] = 0;
-          else if (a >= 166) px[i] = 255;
-          else px[i] = Math.round((a - 89) * 255 / 77);
+          if (isLightProduct) {
+            const opacity = a/255;
+            for (let c=1; c<=3; c++) {
+              const colorIndex = i-c;
+              px[colorIndex] = Math.round(px[colorIndex]*opacity + 252*(1-opacity));
+            }
+            if (a <= 20) px[i] = 0;
+            else if (a >= 235) px[i] = 255;
+            else px[i] = Math.round((a - 20) * 255 / 215);
+          } else {
+            if (a <= 89) px[i] = 0;
+            else if (a >= 166) px[i] = 255;
+            else px[i] = Math.round((a - 89) * 255 / 77);
+          }
         }
         tmpCtx.putImageData(imageData, 0, 0);
         
