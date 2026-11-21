@@ -5812,7 +5812,22 @@ function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl) {
         const tmp = document.createElement('canvas');
         tmp.width = img.width; tmp.height = img.height;
         tmp.getContext('2d').drawImage(img, 0, 0);
-        const px = tmp.getContext('2d').getImageData(0, 0, img.width, img.height).data;
+        const tmpCtx = tmp.getContext('2d');
+        const imageData = tmpCtx.getImageData(0, 0, img.width, img.height);
+        const px = imageData.data;
+
+        // El modelo de rembg deja una franja de pixeles semitransparentes que
+        // conserva color del fondo original (gris, alfombra, mesa, etc.). Al
+        // componerla sobre blanco esa franja se ve como un halo borroso.
+        // Reasignar alpha 20%-80% conserva el antialiasing fino, pero elimina
+        // el fondo contaminado sin cortar tela, costuras ni mangas.
+        for (let i=3; i<px.length; i+=4) {
+          const a = px[i];
+          if (a <= 51) px[i] = 0;
+          else if (a >= 204) px[i] = 255;
+          else px[i] = Math.round((a - 51) * 255 / 153);
+        }
+        tmpCtx.putImageData(imageData, 0, 0);
         
         let x0=img.width, x1=0, y0=img.height, y1=0;
         for (let y=0; y<img.height; y++) {
@@ -5834,7 +5849,7 @@ function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl) {
         const dx = (size-dW)/2, dy = (size-dH)/2;
         
         // Dibujar producto centrado sobre fondo blanco
-        ctx.drawImage(img, x0, y0, cropW, cropH, dx, dy, dW, dH);
+        ctx.drawImage(tmp, x0, y0, cropW, cropH, dx, dy, dW, dH);
         finish(canvas.toDataURL('image/jpeg', 0.94));
       } catch (err) {
         console.error('Canvas error:', err);
@@ -5895,7 +5910,9 @@ function clTakePhoto(slotId) {
           const workerRes = await fetch(WORKER + '/?action=railway_rembg', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: b64, format: 'jpeg', quality: 92 }),
+            // PNG conserva el canal alpha. El navegador limpia el halo y
+            // realiza una sola composicion final sobre blanco.
+            body: JSON.stringify({ image: b64, format: 'png' }),
             signal: controller ? controller.signal : undefined
           });
           if (rembgTimeout) clearTimeout(rembgTimeout);
