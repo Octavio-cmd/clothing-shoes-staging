@@ -53,14 +53,14 @@ test('photo UI — previews preserve the entire garment or shoe', () => {
 });
 
 test('photo deployment — app.js cache key is bumped for employee devices', () => {
-  assert.match(html, /app\.js\?v=20261121-photo-fix-08/);
+  assert.match(html, /app\.js\?v=20261121-photo-fix-09/);
 });
 
 test('photo pipeline — requests neutral brightness and preserves returned JPEG', () => {
   const start = app.indexOf('function applyWhiteSquare');
   const end = app.indexOf('function clCompressImage', start);
   const fn = app.slice(start, end);
-  assert.match(app, /const REMBG_PROCESSOR='https:\/\/savvy-rembg-production\.up\.railway\.app\/remove-bg'/);
+  assert.match(app, /const REMBG_PROCESSOR='https:\/\/savvy-rembg-staging-isnet-production\.up\.railway\.app\/remove-bg'/);
   assert.match(fn, /brightness: 1\.0/);
   assert.match(fn, /format: 'jpeg'/);
   assert.match(fn, /if \(\/\^data:image\\\/jpeg\/i\.test\(dataUrl\)\)/);
