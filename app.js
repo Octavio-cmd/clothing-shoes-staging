@@ -44,6 +44,9 @@ window.CL_BUILD = '2026-08-24a';
 try { console.log('[Clothing & Shoes] build ' + window.CL_BUILD); } catch(e){}
 
 const WORKER='https://savvy-ebay.octavio-9e2.workers.dev';
+// Procesador de imagen compartido y sin estado. Staging fija brightness=1.0
+// por solicitud para no quemar detalle en prendas y zapatos blancos.
+const REMBG_PROCESSOR='https://savvy-rembg-production.up.railway.app/remove-bg';
 const DEF_EBAY='StevenGa-SavvySca-PRD-81addb012-655f2649';
 // ── Default API keys
 let DEFAULT_PHOTOROOM_KEY = '';
@@ -5807,6 +5810,19 @@ function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl) {
         // Llenar fondo blanco
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, size, size);
+
+        // El procesador puede devolver un JPEG ya recortado y compuesto. En
+        // ese caso solo se centra en el lienzo cuadrado: no volver a alterar
+        // brillo, color ni mascara, evitando perder detalle por segunda vez.
+        if (/^data:image\/jpeg/i.test(dataUrl)) {
+          const pad = size * 0.06;
+          const maxSide = size - pad*2;
+          const ratio = Math.min(maxSide/img.width, maxSide/img.height);
+          const dW = img.width*ratio, dH = img.height*ratio;
+          ctx.drawImage(img, (size-dW)/2, (size-dH)/2, dW, dH);
+          finish(canvas.toDataURL('image/jpeg', 0.94));
+          return;
+        }
         
         // Detectar bounds del producto
         const tmp = document.createElement('canvas');
@@ -5946,18 +5962,30 @@ function clTakePhoto(slotId) {
 
         try {
           const b64 = dataUrl.split(',')[1];
-          console.log('📤 Sending to Worker proxy...');
+          console.log('📤 Sending to image processor...');
           
           const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
           const rembgTimeout = controller ? setTimeout(() => controller.abort(), 30000) : null;
-          const workerRes = await fetch(WORKER + '/?action=railway_rembg', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            // PNG conserva el canal alpha. El navegador limpia el halo y
-            // realiza una sola composicion final sobre blanco.
-            body: JSON.stringify({ image: b64, format: 'png' }),
-            signal: controller ? controller.signal : undefined
-          });
+          let workerRes;
+          try {
+            // El valor global del servidor es 1.25. En productos blancos ese
+            // brillo extra quema costuras y relieves; esta solicitud usa 1.0.
+            workerRes = await fetch(REMBG_PROCESSOR, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: b64, format: 'jpeg', quality: 94, brightness: 1.0 }),
+              signal: controller ? controller.signal : undefined
+            });
+            if (!workerRes.ok) throw new Error('Direct rembg error ' + workerRes.status);
+          } catch (directErr) {
+            console.warn('Direct rembg unavailable — using proxy fallback');
+            workerRes = await fetch(WORKER + '/?action=railway_rembg', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: b64, format: 'png' }),
+              signal: controller ? controller.signal : undefined
+            });
+          }
           if (rembgTimeout) clearTimeout(rembgTimeout);
 
           console.log('📥 Worker response status: ' + workerRes.status);
