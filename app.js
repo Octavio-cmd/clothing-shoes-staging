@@ -5839,6 +5839,13 @@ function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl) {
                 Math.round(250 - (255 - px[i+c]) * 1.18)));
             }
           }
+
+          // Un producto casi blanco sobre #FFF pierde visualmente su silueta
+          // aunque la mascara sea correcta. Un gris neutro apenas perceptible
+          // conserva el aspecto de foto de catalogo y separa costuras, agujetas
+          // y contornos sin cambiar el color real del articulo.
+          ctx.fillStyle = '#F3F3F3';
+          ctx.fillRect(0, 0, size, size);
         }
 
         // El modelo de rembg deja transparencia parcial tanto en el contorno
