@@ -5846,6 +5846,30 @@ function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl) {
           if ((r+g+b)/3 >= 205 && max-min <= 38) lightNeutralCount++;
         }
         const isLightProduct = opaqueCount > 0 && lightNeutralCount/opaqueCount >= 0.42;
+
+        // ISNet puede dejar pequenos cortes de 1 px en detalles oscuros que
+        // tocan una pieza blanca (franjas, talones, ribetes). Antes de limpiar
+        // la mascara, extender solamente un pixel el alpha ya reconocido. La
+        // expansion limitada recupera esos bordes sin volver a introducir el
+        // fondo ni crear el halo ancho que producia el suavizado anterior.
+        if (isLightProduct) {
+          const originalAlpha = new Uint8ClampedArray(img.width * img.height);
+          for (let p=0; p<originalAlpha.length; p++) originalAlpha[p] = px[p*4+3];
+          for (let y=1; y<img.height-1; y++) {
+            for (let x=1; x<img.width-1; x++) {
+              const p = y*img.width+x;
+              if (originalAlpha[p] >= 235) continue;
+              let neighborMax = 0;
+              for (let oy=-1; oy<=1; oy++) {
+                for (let ox=-1; ox<=1; ox++) {
+                  if (ox===0 && oy===0) continue;
+                  neighborMax = Math.max(neighborMax, originalAlpha[p+oy*img.width+ox]);
+                }
+              }
+              if (neighborMax >= 235) px[p*4+3] = Math.max(px[p*4+3], 210);
+            }
+          }
+        }
         if (isLightProduct) {
           for (let i=0; i<px.length; i+=4) {
             if (px[i+3] < 32) continue;
@@ -5973,7 +5997,9 @@ function clTakePhoto(slotId) {
             workerRes = await fetch(REMBG_PROCESSOR, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: b64, format: 'jpeg', quality: 94, brightness: 1.0 }),
+              // PNG conserva la mascara alpha para reparar pequenas mordidas
+              // de ISNet antes de componer el fondo blanco en el navegador.
+              body: JSON.stringify({ image: b64, format: 'png', quality: 94, brightness: 1.0 }),
               signal: controller ? controller.signal : undefined
             });
             if (!workerRes.ok) throw new Error('Direct rembg error ' + workerRes.status);
