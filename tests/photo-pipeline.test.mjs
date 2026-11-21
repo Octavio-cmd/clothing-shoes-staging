@@ -53,18 +53,27 @@ test('photo UI — previews preserve the entire garment or shoe', () => {
 });
 
 test('photo deployment — app.js cache key is bumped for employee devices', () => {
-  assert.match(html, /app\.js\?v=20261121-photo-fix-09/);
+  assert.match(html, /app\.js\?v=20261121-photo-fix-10/);
 });
 
-test('photo pipeline — requests neutral brightness and preserves returned JPEG', () => {
+test('photo pipeline — requests neutral brightness and a repairable PNG mask', () => {
   const start = app.indexOf('function applyWhiteSquare');
   const end = app.indexOf('function clCompressImage', start);
   const fn = app.slice(start, end);
   assert.match(app, /const REMBG_PROCESSOR='https:\/\/savvy-rembg-staging-isnet-production\.up\.railway\.app\/remove-bg'/);
   assert.match(fn, /brightness: 1\.0/);
-  assert.match(fn, /format: 'jpeg'/);
+  assert.match(fn, /format: 'png'/);
   assert.match(fn, /if \(\/\^data:image\\\/jpeg\/i\.test\(dataUrl\)\)/);
   assert.match(fn, /Direct rembg unavailable — using proxy fallback/);
+});
+
+test('photo pipeline — protects one-pixel edges on predominantly light products', () => {
+  const start = app.indexOf('function applyWhiteSquare');
+  const end = app.indexOf('function clTakePhoto', start);
+  const fn = app.slice(start, end);
+  assert.match(fn, /const originalAlpha = new Uint8ClampedArray/);
+  assert.match(fn, /if \(neighborMax >= 235\) px\[p\*4\+3\] = Math\.max\(px\[p\*4\+3\], 210\)/);
+  assert.doesNotMatch(fn, /oy=-2|ox=-2/);
 });
 
 test('photo pipeline — restores detail only on predominantly light products', () => {
