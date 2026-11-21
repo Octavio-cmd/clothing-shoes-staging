@@ -5780,21 +5780,22 @@ function clRenderPhotos() {
 // 1. Detect product bounding box (non-transparent pixels)
 // 2. Crop to product
 // 3. Center on white 1200x1200 canvas with padding
-function applyWhiteSquare(dataUrl, size=1600) {
+function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl) {
   return new Promise(resolve => {
+    let settled = false;
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(value || fallbackUrl || dataUrl);
+    };
     const timeoutId = setTimeout(() => {
-      console.warn('⏱ applyWhiteSquare timeout — creating fallback white square');
-      // Si falla timeout, retorna canvas blanco 400x400 puro
-      const c = document.createElement('canvas');
-      c.width = size; c.height = size;
-      c.getContext('2d').fillStyle = '#FFFFFF';
-      c.getContext('2d').fillRect(0, 0, size, size);
-      resolve(c.toDataURL('image/jpeg', 1.0));
-    }, 2000);
+      console.warn('⏱ applyWhiteSquare timeout — preserving original photo');
+      finish(fallbackUrl || dataUrl);
+    }, 15000);
     
     const img = new Image();
     img.onload = () => {
-      clearTimeout(timeoutId);
       try {
         const canvas = document.createElement('canvas');
         canvas.width = size;
@@ -5834,27 +5835,17 @@ function applyWhiteSquare(dataUrl, size=1600) {
         
         // Dibujar producto centrado sobre fondo blanco
         ctx.drawImage(img, x0, y0, cropW, cropH, dx, dy, dW, dH);
-        resolve(canvas.toDataURL('image/jpeg', 0.92));
+        finish(canvas.toDataURL('image/jpeg', 0.94));
       } catch (err) {
         console.error('Canvas error:', err);
-        // Si hay error, retorna fondo blanco puro
-        const c = document.createElement('canvas');
-        c.width = size; c.height = size;
-        c.getContext('2d').fillStyle = '#FFFFFF';
-        c.getContext('2d').fillRect(0, 0, size, size);
-        resolve(c.toDataURL('image/jpeg', 1.0));
+        // Nunca reemplazar una foto valida por un cuadro blanco.
+        finish(fallbackUrl || dataUrl);
       }
     };
     
     img.onerror = () => {
-      clearTimeout(timeoutId);
-      console.warn('⚠️ PNG load error — creating white square fallback');
-      // Si PNG no carga, retorna canvas blanco
-      const c = document.createElement('canvas');
-      c.width = size; c.height = size;
-      c.getContext('2d').fillStyle = '#FFFFFF';
-      c.getContext('2d').fillRect(0, 0, size, size);
-      resolve(c.toDataURL('image/jpeg', 1.0));
+      console.warn('⚠️ Processed image load error — preserving original photo');
+      finish(fallbackUrl || dataUrl);
     };
     
     img.src = dataUrl;
@@ -5899,32 +5890,39 @@ function clTakePhoto(slotId) {
           const b64 = dataUrl.split(',')[1];
           console.log('📤 Sending to Worker proxy...');
           
+          const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const rembgTimeout = controller ? setTimeout(() => controller.abort(), 30000) : null;
           const workerRes = await fetch(WORKER + '/?action=railway_rembg', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: b64 })
+            body: JSON.stringify({ image: b64, format: 'jpeg', quality: 92 }),
+            signal: controller ? controller.signal : undefined
           });
+          if (rembgTimeout) clearTimeout(rembgTimeout);
 
           console.log('📥 Worker response status: ' + workerRes.status);
+          if (!workerRes.ok) throw new Error('Railway rembg error ' + workerRes.status);
           const result = await workerRes.json();
           console.log('📊 Result:', result);
 
           if (result.success && result.image) {
             console.log('✅ Background removed successfully');
-            const pngUrl = 'data:image/png;base64,' + result.image;
+            const resultMime = result.mime === 'image/jpeg' || result.format === 'jpeg'
+              ? 'image/jpeg'
+              : 'image/png';
+            const processedUrl = 'data:' + resultMime + ';base64,' + result.image;
             
             if (slot) slot.innerHTML = '<div style="text-align:center;padding:20px"><div class="sp" style="width:28px;height:28px;margin:0 auto 8px"></div><div style="font-size:11px;color:var(--gd)">Applying white background...</div></div>';
             
             // Intentar aplicar fondo blanco
-            const whiteSquareUrl = await applyWhiteSquare(pngUrl, 1600);
+            const whiteSquareUrl = await applyWhiteSquare(processedUrl, 1600, dataUrl);
             
             // Si applyWhiteSquare retorna algo vacío o inválido, usa PNG directamente
             if (whiteSquareUrl && whiteSquareUrl.length > 100) {
               dataUrl = whiteSquareUrl;
               console.log('✅ White background applied');
             } else {
-              console.warn('⚠️ White background failed, using PNG with transparency');
-              dataUrl = pngUrl;  // Fallback a PNG transparente
+              console.warn('⚠️ White background failed, preserving original photo');
             }
             
             cl.photos[slotId + '_bg_removed'] = true;
@@ -5998,7 +5996,10 @@ function clCompressImage(file, maxW=900, quality=0.75) {
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(img.width * ratio);
         canvas.height = Math.round(img.height * ratio);
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL('image/jpeg', quality));
       };
       img.src = e.target.result;
