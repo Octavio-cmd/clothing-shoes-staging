@@ -53,7 +53,7 @@ test('photo UI — previews preserve the entire garment or shoe', () => {
 });
 
 test('photo deployment — app.js cache key is bumped for employee devices', () => {
-  assert.match(html, /app\.js\?v=20261121-photo-fix-06/);
+  assert.match(html, /app\.js\?v=20261121-photo-fix-07/);
 });
 
 test('photo pipeline — restores detail only on predominantly light products', () => {
@@ -66,6 +66,7 @@ test('photo pipeline — restores detail only on predominantly light products', 
   assert.match(fn, /px\[colorIndex\]\*opacity \+ 252\*\(1-opacity\)/);
   assert.match(fn, /if \(a <= 20\) px\[i\] = 0/);
   assert.match(fn, /else if \(a >= 235\) px\[i\] = 255/);
+  assert.match(fn, /ctx\.fillStyle = '#F3F3F3'/);
 });
 
 test('photo pipeline — cleans semi-transparent background halo before white composite', () => {
