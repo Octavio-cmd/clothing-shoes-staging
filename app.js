@@ -5816,6 +5816,31 @@ function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl) {
         const imageData = tmpCtx.getImageData(0, 0, img.width, img.height);
         const px = imageData.data;
 
+        // Los productos blancos conservan detalle en la foto original, pero al
+        // colocarlos sobre blanco puro sus luces se funden visualmente con el
+        // fondo. Detectarlos por sus pixeles opacos y aplicar una curva muy
+        // suave solo a esos productos recupera costuras, agujetas y relieves
+        // sin alterar prendas negras o de color.
+        let opaqueCount = 0, lightNeutralCount = 0;
+        for (let i=0; i<px.length; i+=4) {
+          if (px[i+3] < 220) continue;
+          opaqueCount++;
+          const r=px[i], g=px[i+1], b=px[i+2];
+          const max=Math.max(r,g,b), min=Math.min(r,g,b);
+          if ((r+g+b)/3 >= 205 && max-min <= 38) lightNeutralCount++;
+        }
+        const isLightProduct = opaqueCount > 0 && lightNeutralCount/opaqueCount >= 0.42;
+        if (isLightProduct) {
+          for (let i=0; i<px.length; i+=4) {
+            if (px[i+3] < 32) continue;
+            for (let c=0; c<3; c++) {
+              // Mantener blanco como blanco (250), ampliando diferencias leves.
+              px[i+c] = Math.max(0, Math.min(250,
+                Math.round(250 - (255 - px[i+c]) * 1.18)));
+            }
+          }
+        }
+
         // El modelo de rembg deja una franja de pixeles semitransparentes que
         // conserva color del fondo original (gris, alfombra, mesa, etc.). Al
         // componerla sobre blanco esa franja se ve como un halo borroso.
