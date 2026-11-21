@@ -5988,22 +5988,41 @@ function clTakePhoto(slotId) {
 
 function clCompressImage(file, maxW=900, quality=0.75) {
   return new Promise(resolve => {
+    let settled = false;
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(value || null);
+    };
+    const timeoutId = setTimeout(() => {
+      console.warn('⏱ Image compression timeout');
+      finish(null);
+    }, 15000);
     const reader = new FileReader();
     reader.onload = e => {
       const img = new Image();
       img.onload = () => {
-        const ratio = Math.min(maxW/img.width, maxW/img.height, 1);
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.width * ratio);
-        canvas.height = Math.round(img.height * ratio);
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        try {
+          const ratio = Math.min(maxW/img.width, maxW/img.height, 1);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * ratio);
+          canvas.height = Math.round(img.height * ratio);
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          finish(canvas.toDataURL('image/jpeg', quality));
+        } catch (err) {
+          console.warn('Image compression canvas failed:', err);
+          finish(null);
+        }
       };
+      img.onerror = () => finish(null);
       img.src = e.target.result;
     };
+    reader.onerror = () => finish(null);
+    reader.onabort = () => finish(null);
     reader.readAsDataURL(file);
   });
 }
