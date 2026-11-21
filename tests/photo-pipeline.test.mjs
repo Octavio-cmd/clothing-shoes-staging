@@ -52,6 +52,10 @@ test('photo UI — previews preserve the entire garment or shoe', () => {
   assert.doesNotMatch(html, /\.cl-review-thumb\{[^}]*object-fit:cover/);
 });
 
+test('photo deployment — app.js cache key is bumped for employee devices', () => {
+  assert.match(html, /app\.js\?v=20261121-photo-fix-01/);
+});
+
 test('photo compression — high-quality smoothing is enabled', () => {
   const start = app.indexOf('function clCompressImage');
   const end = app.indexOf('function clStep4Next', start);
