@@ -53,15 +53,15 @@ test('photo UI — previews preserve the entire garment or shoe', () => {
 });
 
 test('photo deployment — app.js cache key is bumped for employee devices', () => {
-  assert.match(html, /app\.js\?v=20261121-photo-fix-03/);
+  assert.match(html, /app\.js\?v=20261121-photo-fix-04/);
 });
 
 test('photo pipeline — cleans semi-transparent background halo before white composite', () => {
   const start = app.indexOf('function applyWhiteSquare');
   const end = app.indexOf('function clTakePhoto', start);
   const fn = app.slice(start, end);
-  assert.match(fn, /if \(a <= 51\) px\[i\] = 0/);
-  assert.match(fn, /else if \(a >= 204\) px\[i\] = 255/);
+  assert.match(fn, /if \(a <= 89\) px\[i\] = 0/);
+  assert.match(fn, /else if \(a >= 166\) px\[i\] = 255/);
   assert.match(fn, /tmpCtx\.putImageData\(imageData, 0, 0\)/);
   assert.match(fn, /ctx\.drawImage\(tmp,/);
 });
