@@ -6084,7 +6084,13 @@ function clTakePhoto(slotId) {
             if (slot) slot.innerHTML = '<div style="text-align:center;padding:20px"><div class="sp" style="width:28px;height:28px;margin:0 auto 8px"></div><div style="font-size:11px;color:var(--gd)">Applying white background...</div></div>';
             
             // Intentar aplicar fondo blanco
-            const preserveNativeMatte = /BiRefNet_HR-matting/i.test(workerRes.savvyEngine || '');
+            // This isolated BETA endpoint is permanently backed by BiRefNet HR.
+            // Do not fall back to the legacy BEN2/IS-Net alpha thresholds when
+            // a browser or intermediary hides the diagnostic response header.
+            const preserveNativeMatte = REMBG_PROCESSOR.includes('background-engine-v2-beta')
+              || /BiRefNet_HR-matting/i.test(workerRes.savvyEngine || '');
+            console.log('🧠 Native BiRefNet matte:', preserveNativeMatte,
+              workerRes.savvyEngine || '(endpoint fallback)');
             const whiteSquareUrl = await applyWhiteSquare(processedUrl, 1600, dataUrl, preserveNativeMatte);
             
             // Si applyWhiteSquare retorna algo vacío o inválido, usa PNG directamente
