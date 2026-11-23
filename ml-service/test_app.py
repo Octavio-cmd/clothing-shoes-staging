@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import base64
 
 from fastapi.testclient import TestClient
 from PIL import Image
@@ -68,4 +69,20 @@ def test_remove_bg_rejects_empty_file() -> None:
         files={"file": ("product.png", b"", "image/png")},
     )
     assert response.status_code == 400
+
+
+def test_remove_bg_supports_legacy_json_client(monkeypatch) -> None:
+    def fake_remove(source: bytes, refine_foreground: bool = False) -> CutoutResult:
+        assert source
+        return CutoutResult(sample_png(), 8, 6)
+
+    monkeypatch.setattr(service.engine, "remove", fake_remove)
+    response = client.post(
+        "/remove-bg",
+        json={"image": base64.b64encode(sample_jpeg()).decode("ascii"), "format": "png"},
+    )
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert response.json()["mime"] == "image/png"
+    assert base64.b64decode(response.json()["image"]).startswith(b"\x89PNG")
 
