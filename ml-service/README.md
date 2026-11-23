@@ -2,6 +2,8 @@
 
 Motor BETA independiente para generar recortes PNG con transparencia real.
 
+Despliegue consolidado: BiRefNet HR Matting.
+
 ## Decisiones
 
 - BiRefNet HR Matting es el motor predeterminado.
