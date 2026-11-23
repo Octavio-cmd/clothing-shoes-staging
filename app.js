@@ -61,7 +61,9 @@ let _keysLoaded = false;
 // La clave de Anthropic ya no llega al navegador: vive solo en el
 // backend. Aqui solo viaja un token de sesion firmado.
 // ══════════════════════════════════════════════════════════════
-const SAVVY_API = 'https://ample-imagination-clothing-staging.up.railway.app';
+const SAVVY_API = location.hostname === 'savvy-photo-app-v2-beta-production.up.railway.app'
+  ? '/savvy-api'
+  : 'https://ample-imagination-clothing-staging.up.railway.app';
 const SAVVY_MODELO = 'claude-haiku-4-5-20251001';
 
 // sessionStorage y no localStorage: los iPhone del almacen son compartidos,
