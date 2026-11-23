@@ -1,13 +1,11 @@
 # Third-party notices
 
-## BEN2
+## BiRefNet HR Matting
 
-- Source: https://github.com/PramaLLC/BEN2
-- Base weights: https://huggingface.co/PramaLLC/BEN2
-- Source revision: `2c99a5da477b5523585bfa5c893888a6e818a8f6`
-- Model revision: `e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f`
+- Source: https://github.com/ZhengPeng7/BiRefNet
+- Weights: https://huggingface.co/ZhengPeng7/BiRefNet_HR-matting
+- Model revision: `5d6b6f8`
 - License: MIT
 
-Only the open-source BEN2 Base model is used. This service does not use the
-vendor's paid API or full commercial model.
+Only the official open-source model and weights are used.
 
