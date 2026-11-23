@@ -34,7 +34,7 @@ test('photo pipeline — requests transparent PNG and accepts JPEG or PNG respon
   assert.match(fn, /outputBlob = await workerRes\.blob\(\)/);
   assert.match(fn, /result\.mime === 'image\/jpeg'/);
   assert.match(fn, /'image\/png'/);
-  assert.match(fn, /applyWhiteSquare\(processedUrl, 1600, dataUrl\)/);
+  assert.match(fn, /applyWhiteSquare\(processedUrl, 1600, dataUrl, preserveNativeMatte\)/);
 });
 
 test('photo pipeline — rembg cannot wait forever', () => {
@@ -53,7 +53,7 @@ test('photo UI — previews preserve the entire garment or shoe', () => {
 });
 
 test('photo deployment — app.js cache key is bumped for employee devices', () => {
-  assert.match(html, /app\.js\?v=20261123-ben2-beta-4/);
+  assert.match(html, /app\.js\?v=20261123-birefnet-beta-1/);
 });
 
 test('photo pipeline — requests neutral brightness and a repairable PNG mask', () => {
@@ -81,9 +81,19 @@ test('photo pipeline — BEN2 uses the proven cleanup path instead of raw alpha'
   const start = app.indexOf('function applyWhiteSquare');
   const end = app.indexOf('function clTakePhoto', start);
   const fn = app.slice(start, end);
-  assert.doesNotMatch(fn, /rawPx\[\(y\*img\.width\+x\)\*4\+3\]/);
+  assert.match(fn, /if \(preserveNativeMatte\)/);
+  assert.match(fn, /rawPx\[\(y\*img\.width\+x\)\*4\+3\]/);
   assert.match(fn, /if \(a <= 89\) px\[i\] = 0/);
   assert.match(fn, /else if \(a >= 166\) px\[i\] = 255/);
+});
+
+test('photo pipeline — preserves the official BiRefNet HR alpha matte', () => {
+  const start = app.indexOf('function clTakePhoto');
+  const end = app.indexOf('function clCompressImage', start);
+  const fn = app.slice(start, end);
+  assert.match(fn, /workerRes\.headers\.get\('X-Savvy-Engine'\)/);
+  assert.match(fn, /BiRefNet_HR-matting/);
+  assert.match(fn, /preserveNativeMatte/);
 });
 
 test('photo pipeline — restores detail only on predominantly light products', () => {
