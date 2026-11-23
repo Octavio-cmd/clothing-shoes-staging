@@ -46,8 +46,10 @@
     // El umbral se adapta al fondo. En alfombra gris solo considera como
     // "negro del producto" los pixeles claramente mas oscuros que el marco.
     const darkLimit = options.darkLimit || Math.max(24, Math.min(72, borderMedian - 18));
+    const softDarkLimit = Math.max(darkLimit + 8, Math.min(darkLimit + 34, borderMedian - 6));
     const candidate = new Uint8Array(width * height);
     const visited = new Uint8Array(width * height);
+    const protectedCore = new Uint8Array(width * height);
     for (let i = 0; i < candidate.length; i++) candidate[i] = luminanceAt(data, i) <= darkLimit;
 
     let protectedDarkPixels = 0;
@@ -85,10 +87,37 @@
       for (const index of component) {
         if (alpha[index] < 255) protectedDarkPixels++;
         alpha[index] = 255;
+        protectedCore[index] = 1;
       }
     }
 
-    return {alpha, protectedDarkPixels, darkLimit};
+    // Recupera solamente el antialias inmediato de cada isla negra aceptada.
+    // Dos anillos son suficientes para completar una franja/suela sin permitir
+    // que el crecimiento alcance nuevamente la textura de la alfombra.
+    let frontier = [];
+    for (let i = 0; i < protectedCore.length; i++) if (protectedCore[i]) frontier.push(i);
+    const feathered = new Uint8Array(width * height);
+    let featheredDarkPixels = 0;
+    for (let ring = 0; ring < 2; ring++) {
+      const next = [];
+      for (const index of frontier) for (const neighbor of neighborsOf(index)) {
+        if (protectedCore[neighbor] || feathered[neighbor]) continue;
+        const x = neighbor % width, y = Math.floor(neighbor / width);
+        if (!x || !y || x === width - 1 || y === height - 1) continue;
+        const luma = luminanceAt(data, neighbor);
+        if (luma > softDarkLimit) continue;
+        const confidence = clamp(48 + (softDarkLimit - luma) * 176 / Math.max(1, softDarkLimit - darkLimit));
+        if (confidence > alpha[neighbor]) {
+          alpha[neighbor] = confidence;
+          featheredDarkPixels++;
+        }
+        feathered[neighbor] = 1;
+        next.push(neighbor);
+      }
+      frontier = next;
+    }
+
+    return {alpha, protectedDarkPixels, featheredDarkPixels, darkLimit, softDarkLimit};
   }
 
   function refine(imageData, alphaInput, options = {}) {
@@ -160,7 +189,9 @@
         retainedRatio,
         reviewRequired,
         protectedDarkPixels: protectedResult.protectedDarkPixels,
-        darkLimit: protectedResult.darkLimit
+        featheredDarkPixels: protectedResult.featheredDarkPixels,
+        darkLimit: protectedResult.darkLimit,
+        softDarkLimit: protectedResult.softDarkLimit
       }
     };
   }
