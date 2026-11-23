@@ -31,7 +31,7 @@ test('photo pipeline — requests transparent PNG and accepts JPEG or PNG respon
   const start = app.indexOf('function clTakePhoto');
   const end = app.indexOf('function clCompressImage', start);
   const fn = app.slice(start, end);
-  assert.match(fn, /format: 'png'/);
+  assert.match(fn, /outputBlob = await workerRes\.blob\(\)/);
   assert.match(fn, /result\.mime === 'image\/jpeg'/);
   assert.match(fn, /'image\/png'/);
   assert.match(fn, /applyWhiteSquare\(processedUrl, 1600, dataUrl\)/);
@@ -41,7 +41,7 @@ test('photo pipeline — rembg cannot wait forever', () => {
   const start = app.indexOf('function clTakePhoto');
   const end = app.indexOf('function clCompressImage', start);
   const fn = app.slice(start, end);
-  assert.match(fn, /controller\.abort\(\), 120000/);
+  assert.match(fn, /controller\.abort\(\), 240000/);
   assert.match(fn, /if \(!workerRes\.ok\) throw new Error/);
 });
 
@@ -53,7 +53,7 @@ test('photo UI — previews preserve the entire garment or shoe', () => {
 });
 
 test('photo deployment — app.js cache key is bumped for employee devices', () => {
-  assert.match(html, /app\.js\?v=20261123-ben2-beta-2/);
+  assert.match(html, /app\.js\?v=20261123-ben2-beta-3/);
 });
 
 test('photo pipeline — requests neutral brightness and a repairable PNG mask', () => {
@@ -61,8 +61,9 @@ test('photo pipeline — requests neutral brightness and a repairable PNG mask',
   const end = app.indexOf('function clCompressImage', start);
   const fn = app.slice(start, end);
   assert.match(app, /const REMBG_PROCESSOR='https:\/\/savvy-background-engine-v2-beta-production\.up\.railway\.app\/remove-bg'/);
-  assert.match(fn, /brightness: 1\.0/);
-  assert.match(fn, /format: 'png'/);
+  assert.match(fn, /new FormData\(\)/);
+  assert.match(fn, /form\.append\('file', new Blob/);
+  assert.match(fn, /workerRes\.blob\(\)/);
   assert.match(fn, /if \(\/\^data:image\\\/jpeg\/i\.test\(dataUrl\)\)/);
   assert.match(fn, /Direct rembg unavailable — using proxy fallback/);
 });
