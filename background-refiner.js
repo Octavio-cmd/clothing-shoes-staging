@@ -88,7 +88,65 @@
     };
   }
 
-  const api = {refine};
+  function loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = url;
+    });
+  }
+
+  async function refineCutout(sourceUrl, cutoutUrl) {
+    const [source, cutout] = await Promise.all([loadImage(sourceUrl), loadImage(cutoutUrl)]);
+    if (source.naturalWidth !== cutout.naturalWidth || source.naturalHeight !== cutout.naturalHeight) {
+      return {url: cutoutUrl, metrics: {reviewRequired: true, reason: 'source-mismatch'}};
+    }
+    const width = cutout.naturalWidth, height = cutout.naturalHeight;
+    const sourceCanvas = document.createElement('canvas');
+    sourceCanvas.width = width; sourceCanvas.height = height;
+    const sourceCtx = sourceCanvas.getContext('2d', {willReadFrequently: true});
+    sourceCtx.drawImage(source, 0, 0);
+    const sourceData = sourceCtx.getImageData(0, 0, width, height);
+    const cutCanvas = document.createElement('canvas');
+    cutCanvas.width = width; cutCanvas.height = height;
+    const cutCtx = cutCanvas.getContext('2d', {willReadFrequently: true});
+    cutCtx.drawImage(cutout, 0, 0);
+    const cutData = cutCtx.getImageData(0, 0, width, height);
+    const initialAlpha = new Uint8ClampedArray(width * height);
+    for (let i = 0; i < initialAlpha.length; i++) initialAlpha[i] = cutData.data[i * 4 + 3];
+    const result = refine(sourceData, initialAlpha);
+    for (let i = 0; i < result.alpha.length; i++) cutData.data[i * 4 + 3] = result.alpha[i];
+    cutCtx.putImageData(cutData, 0, 0);
+    return {url: cutCanvas.toDataURL('image/png'), metrics: result.metrics};
+  }
+
+  function installPipeline() {
+    const current = root.applyWhiteSquare;
+    if (typeof current !== 'function' || current.__savvyRefinerWrapped) return;
+    const wrapped = async function(processedUrl, size, fallbackUrl) {
+      let nextUrl = processedUrl;
+      if (/^data:image\/png/i.test(processedUrl) && fallbackUrl) {
+        try {
+          const output = await refineCutout(fallbackUrl, processedUrl);
+          nextUrl = output.url;
+          root.__savvyLastRefinement = output.metrics;
+        } catch (error) {
+          console.warn('BETA background refinement skipped:', error);
+        }
+      }
+      return current(nextUrl, size, fallbackUrl);
+    };
+    wrapped.__savvyRefinerWrapped = true;
+    root.applyWhiteSquare = wrapped;
+    console.log('✅ BETA background refiner active');
+  }
+
+  const api = {refine, refineCutout, installPipeline};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.SavvyBackgroundRefiner = api;
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installPipeline);
+    else installPipeline();
+  }
 })(typeof window !== 'undefined' ? window : globalThis);
