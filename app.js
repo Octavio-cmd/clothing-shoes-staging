@@ -46,7 +46,7 @@ try { console.log('[Clothing & Shoes] build ' + window.CL_BUILD); } catch(e){}
 const WORKER='https://savvy-ebay.octavio-9e2.workers.dev';
 // Procesador aislado de staging: IS-Net conserva mejor los detalles claros.
 // Staging fija brightness=1.0 para no quemar prendas y zapatos blancos.
-const REMBG_PROCESSOR='https://savvy-rembg-staging-isnet-production.up.railway.app/remove-bg';
+const REMBG_PROCESSOR='https://savvy-background-engine-v2-beta-production.up.railway.app/remove-bg';
 const DEF_EBAY='StevenGa-SavvySca-PRD-81addb012-655f2649';
 // ── Default API keys
 let DEFAULT_PHOTOROOM_KEY = '';
