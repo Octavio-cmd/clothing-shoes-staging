@@ -6018,9 +6018,31 @@ function clTakePhoto(slotId) {
           console.log('📤 Sending to image processor...');
           
           const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-          const rembgTimeout = controller ? setTimeout(() => controller.abort(), 120000) : null;
+          // BEN2 tarda cerca de dos minutos con una foto completa en CPU. Darle
+          // margen real y enviar binario evita el 33% extra del base64/JSON.
+          const rembgTimeout = controller ? setTimeout(() => controller.abort(), 240000) : null;
           let workerRes;
-          try {
+          let processedUrl;
+          if (REMBG_PROCESSOR.includes('background-engine-v2-beta')) {
+            const decoded = atob(b64);
+            const exactBytes = new Uint8Array(decoded.length);
+            for (let i=0; i<decoded.length; i++) exactBytes[i] = decoded.charCodeAt(i);
+            const form = new FormData();
+            form.append('file', new Blob([exactBytes], {type:'image/jpeg'}), 'photo.jpg');
+            workerRes = await fetch(REMBG_PROCESSOR, {
+              method: 'POST',
+              body: form,
+              signal: controller ? controller.signal : undefined
+            });
+            if (!workerRes.ok) throw new Error('Direct BEN2 error ' + workerRes.status);
+            const outputBlob = await workerRes.blob();
+            processedUrl = await new Promise((resolveDataUrl, rejectDataUrl) => {
+              const reader = new FileReader();
+              reader.onload = () => resolveDataUrl(reader.result);
+              reader.onerror = () => rejectDataUrl(new Error('BEN2 response could not be read'));
+              reader.readAsDataURL(outputBlob);
+            });
+          } else try {
             // El valor global del servidor es 1.25. En productos blancos ese
             // brillo extra quema costuras y relieves; esta solicitud usa 1.0.
             workerRes = await fetch(REMBG_PROCESSOR, {
@@ -6045,7 +6067,9 @@ function clTakePhoto(slotId) {
 
           console.log('📥 Worker response status: ' + workerRes.status);
           if (!workerRes.ok) throw new Error('Railway rembg error ' + workerRes.status);
-          const result = await workerRes.json();
+          const result = processedUrl
+            ? {success:true, image:processedUrl.split(',')[1], mime:'image/png', format:'png'}
+            : await workerRes.json();
           console.log('📊 Result:', result);
 
           if (result.success && result.image) {
