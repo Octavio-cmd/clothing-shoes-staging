@@ -60,7 +60,7 @@ test('photo pipeline — requests neutral brightness and a repairable PNG mask',
   const start = app.indexOf('function applyWhiteSquare');
   const end = app.indexOf('function clCompressImage', start);
   const fn = app.slice(start, end);
-  assert.match(app, /const REMBG_PROCESSOR='https:\/\/savvy-rembg-staging-isnet-production\.up\.railway\.app\/remove-bg'/);
+  assert.match(app, /const REMBG_PROCESSOR='https:\/\/savvy-background-engine-v2-beta-production\.up\.railway\.app\/remove-bg'/);
   assert.match(fn, /brightness: 1\.0/);
   assert.match(fn, /format: 'png'/);
   assert.match(fn, /if \(\/\^data:image\\\/jpeg\/i\.test\(dataUrl\)\)/);
