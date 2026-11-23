@@ -24,6 +24,73 @@
     return seeds;
   }
 
+  const luminanceAt = (data, index) => {
+    const p = index * 4;
+    return data[p] * 0.2126 + data[p + 1] * 0.7152 + data[p + 2] * 0.0722;
+  };
+
+  function protectDarkAttachments(imageData, alphaInput, options = {}) {
+    const {width, height, data} = imageData;
+    const alpha = new Uint8ClampedArray(alphaInput);
+    const borderLuma = [];
+    for (let x = 0; x < width; x++) {
+      borderLuma.push(luminanceAt(data, x));
+      borderLuma.push(luminanceAt(data, (height - 1) * width + x));
+    }
+    for (let y = 1; y < height - 1; y++) {
+      borderLuma.push(luminanceAt(data, y * width));
+      borderLuma.push(luminanceAt(data, y * width + width - 1));
+    }
+    borderLuma.sort((a, b) => a - b);
+    const borderMedian = borderLuma[Math.floor(borderLuma.length / 2)] || 90;
+    // El umbral se adapta al fondo. En alfombra gris solo considera como
+    // "negro del producto" los pixeles claramente mas oscuros que el marco.
+    const darkLimit = options.darkLimit || Math.max(24, Math.min(72, borderMedian - 18));
+    const candidate = new Uint8Array(width * height);
+    const visited = new Uint8Array(width * height);
+    for (let i = 0; i < candidate.length; i++) candidate[i] = luminanceAt(data, i) <= darkLimit;
+
+    let protectedDarkPixels = 0;
+    const neighborsOf = index => {
+      const x = index % width, y = Math.floor(index / width), out = [];
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height) out.push(ny * width + nx);
+      }
+      return out;
+    };
+
+    for (let start = 0; start < candidate.length; start++) {
+      if (!candidate[start] || visited[start]) continue;
+      const component = [], queue = [start];
+      visited[start] = 1;
+      let touchesFrame = false, attachedToProduct = false;
+      for (let head = 0; head < queue.length; head++) {
+        const index = queue[head], x = index % width, y = Math.floor(index / width);
+        component.push(index);
+        if (!x || !y || x === width - 1 || y === height - 1) touchesFrame = true;
+        if (alpha[index] >= 96) attachedToProduct = true;
+        for (const neighbor of neighborsOf(index)) {
+          if (alpha[neighbor] >= 180) attachedToProduct = true;
+          if (candidate[neighbor] && !visited[neighbor]) {
+            visited[neighbor] = 1;
+            queue.push(neighbor);
+          }
+        }
+      }
+      // Fondo oscuro que llega al marco sigue siendo fondo. Franjas, suela y
+      // talon son islas internas conectadas al cuerpo ya reconocido.
+      if (touchesFrame || !attachedToProduct || component.length > width * height * 0.12) continue;
+      for (const index of component) {
+        if (alpha[index] < 255) protectedDarkPixels++;
+        alpha[index] = 255;
+      }
+    }
+
+    return {alpha, protectedDarkPixels, darkLimit};
+  }
+
   function refine(imageData, alphaInput, options = {}) {
     const {width, height, data} = imageData;
     const alpha = new Uint8ClampedArray(alphaInput);
@@ -75,6 +142,9 @@
       }
     }
 
+    const protectedResult = protectDarkAttachments(imageData, alpha, options);
+    alpha.set(protectedResult.alpha);
+
     const opaqueBefore = alphaInput.reduce((n, value) => n + (value >= 128), 0);
     const opaqueAfter = alpha.reduce((n, value) => n + (value >= 128), 0);
     const borderLeak = seeds.reduce((n, index) => n + (alpha[index] >= 32), 0) / Math.max(1, seeds.length);
@@ -84,7 +154,14 @@
 
     return {
       alpha,
-      metrics: {borderLeak, removalRatio, retainedRatio, reviewRequired}
+      metrics: {
+        borderLeak,
+        removalRatio,
+        retainedRatio,
+        reviewRequired,
+        protectedDarkPixels: protectedResult.protectedDarkPixels,
+        darkLimit: protectedResult.darkLimit
+      }
     };
   }
 
@@ -121,7 +198,15 @@
     const initialAlpha = new Uint8ClampedArray(width * height);
     for (let i = 0; i < initialAlpha.length; i++) initialAlpha[i] = cutData.data[i * 4 + 3];
     const result = refine(sourceData, initialAlpha);
-    for (let i = 0; i < result.alpha.length; i++) cutData.data[i * 4 + 3] = result.alpha[i];
+    for (let i = 0; i < result.alpha.length; i++) {
+      const p = i * 4;
+      if (result.alpha[i] > initialAlpha[i]) {
+        cutData.data[p] = sourceData.data[p];
+        cutData.data[p + 1] = sourceData.data[p + 1];
+        cutData.data[p + 2] = sourceData.data[p + 2];
+      }
+      cutData.data[p + 3] = result.alpha[i];
+    }
     cutCtx.putImageData(cutData, 0, 0);
     return {url: cutCanvas.toDataURL('image/png'), metrics: result.metrics};
   }
@@ -147,7 +232,7 @@
     console.log('✅ BETA background refiner active');
   }
 
-  const api = {refine, refineCutout, installPipeline};
+  const api = {refine, protectDarkAttachments, refineCutout, installPipeline};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.SavvyBackgroundRefiner = api;
   if (typeof document !== 'undefined') {
