@@ -1,13 +1,13 @@
-# Savvy Background Engine v2
+# Savvy Background Engine v3 BETA
 
 Motor BETA independiente para generar recortes PNG con transparencia real.
 
 ## Decisiones
 
-- BEN2 Base es el motor predeterminado.
+- BiRefNet HR Matting es el motor predeterminado.
+- Se ejecuta a 1024x1024 y restaura el alfa al tamano original.
 - La imagen conserva su resolución y orientación originales.
-- El modo `refine` es opcional; no se aplica automáticamente porque modifica
-  los píxeles RGB además del alfa.
+- El modo `refine` se conserva solamente por compatibilidad con el cliente.
 - Una sola inferencia se ejecuta a la vez para evitar picos de memoria.
 - La página de producción no se modifica durante las pruebas.
 
