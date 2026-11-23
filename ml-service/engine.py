@@ -53,7 +53,7 @@ class BackgroundEngine:
                         self.model_id,
                         revision=MODEL_REVISION,
                         trust_remote_code=True,
-                    ).to(self._device).eval()
+                    ).to(self._device).float().eval()
         return self._model
 
     def remove(self, source: bytes, refine_foreground: bool = False) -> CutoutResult:
@@ -62,7 +62,9 @@ class BackgroundEngine:
             image = ImageOps.exif_transpose(opened).convert("RGB")
         width, height = image.size
 
-        tensor = self._preprocess(image).unsqueeze(0).to(self._device)
+        tensor = self._preprocess(image).unsqueeze(0).to(
+            device=self._device, dtype=torch.float32
+        )
         with self._inference_lock, torch.inference_mode():
             prediction = self._get_model()(tensor)[-1].sigmoid().cpu()[0].squeeze()
 
