@@ -53,7 +53,7 @@ test('photo UI — previews preserve the entire garment or shoe', () => {
 });
 
 test('photo deployment — app.js cache key is bumped for employee devices', () => {
-  assert.match(html, /app\.js\?v=20261123-ben2-beta-1/);
+  assert.match(html, /app\.js\?v=20261123-ben2-beta-2/);
 });
 
 test('photo pipeline — requests neutral brightness and a repairable PNG mask', () => {
@@ -74,6 +74,16 @@ test('photo pipeline — protects one-pixel edges on predominantly light product
   assert.match(fn, /const originalAlpha = new Uint8ClampedArray/);
   assert.match(fn, /if \(neighborMax >= 235\) px\[p\*4\+3\] = Math\.max\(px\[p\*4\+3\], 210\)/);
   assert.doesNotMatch(fn, /oy=-2|ox=-2/);
+});
+
+test('photo pipeline — BEN2 keeps its original alpha without legacy edge expansion', () => {
+  const start = app.indexOf('function applyWhiteSquare');
+  const end = app.indexOf('function clTakePhoto', start);
+  const fn = app.slice(start, end);
+  assert.match(fn, /REMBG_PROCESSOR\.includes\('background-engine-v2-beta'\)/);
+  assert.match(fn, /rawPx\[\(y\*img\.width\+x\)\*4\+3\] > 5/);
+  assert.match(fn, /ctx\.drawImage\(raw,/);
+  assert.match(fn, /finish\(canvas\.toDataURL\('image\/jpeg', 0\.94\)\);\s*return;/);
 });
 
 test('photo pipeline — restores detail only on predominantly light products', () => {
