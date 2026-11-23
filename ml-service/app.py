@@ -28,7 +28,7 @@ ALLOWED_ORIGINS = [
 
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 engine = BackgroundEngine()
-app = FastAPI(title="Savvy Background Engine", version="2.0.0")
+app = FastAPI(title="Savvy Background Engine", version="3.0.0-beta")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
