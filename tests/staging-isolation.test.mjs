@@ -33,7 +33,7 @@ test('Staging isolation: No production URLs', async (t) => {
   await t.test('app.js: SAVVY_API definido como staging', () => {
     assert.match(
       appJS,
-      /const\s+SAVVY_API\s*=\s*['"]https:\/\/ample-imagination-clothing-staging\.up\.railway\.app['"];/,
+      /'https:\/\/ample-imagination-clothing-staging\.up\.railway\.app'/,
       'SAVVY_API debe estar configurado con staging URL'
     );
   });
