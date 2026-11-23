@@ -41,7 +41,7 @@ test('photo pipeline — rembg cannot wait forever', () => {
   const start = app.indexOf('function clTakePhoto');
   const end = app.indexOf('function clCompressImage', start);
   const fn = app.slice(start, end);
-  assert.match(fn, /controller\.abort\(\), 30000/);
+  assert.match(fn, /controller\.abort\(\), 120000/);
   assert.match(fn, /if \(!workerRes\.ok\) throw new Error/);
 });
 
