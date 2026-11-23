@@ -114,7 +114,20 @@
           const sourceCtx=sourceCanvas.getContext('2d',{willReadFrequently:true});
           sourceCtx.drawImage(src,0,0);
           sourcePixels=sourceCtx.getImageData(0,0,canvas.width,canvas.height);
-          ov.querySelector('[data-status]').textContent='Automatic cutout aligned';
+          // Segunda etapa BETA: usa el fondo real del marco para retirar
+          // regiones adheridas (por ejemplo alfombra gris junto a calzado
+          // blanco) antes de mostrar el editor.
+          if (window.SavvyBackgroundRefiner) {
+            const refined=window.SavvyBackgroundRefiner.refine(sourcePixels,alpha);
+            alpha=refined.alpha;
+            const m=refined.metrics;
+            ov.querySelector('[data-status]').textContent=m.reviewRequired
+              ? 'Automatic refinement · review recommended'
+              : 'Automatic refinement passed';
+            ov.querySelector('[data-status]').style.color=m.reviewRequired?'#ffd166':'#b8f5d3';
+          } else {
+            ov.querySelector('[data-status]').textContent='Automatic cutout aligned';
+          }
         } else {
           mode='erase'; restoreBtn.disabled=true; restoreBtn.style.opacity='.45'; restoreBtn.style.background='#333';
           eraseBtn.style.background='#9b2c2c';
