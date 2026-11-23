@@ -11,11 +11,13 @@
  */
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = __dirname;
+const SAVVY_BACKEND_HOST = 'ample-imagination-clothing-staging.up.railway.app';
 
 // Tipos MIME comunes
 const MIME_TYPES = {
@@ -39,6 +41,34 @@ const server = http.createServer((req, res) => {
   // Ignora query strings (?...) y fragments (#...)
   const requestUrl = new URL(req.url, 'http://localhost');
   let urlPath = decodeURIComponent(requestUrl.pathname);
+
+  // Proxy BETA de mismo origen. El backend de autenticacion solo permite el
+  // origen historico de GitHub Pages; Railway reenvia estas rutas desde el
+  // servidor para que el navegador no exponga credenciales a otro destino ni
+  // dependa de CORS. El destino es fijo y no acepta URLs proporcionadas por el
+  // usuario.
+  if (urlPath === '/savvy-api' || urlPath.startsWith('/savvy-api/')) {
+    const backendPath = urlPath.slice('/savvy-api'.length) || '/';
+    const headers = { ...req.headers, host: SAVVY_BACKEND_HOST };
+    delete headers.origin;
+    delete headers.referer;
+    const upstream = https.request({
+      hostname: SAVVY_BACKEND_HOST,
+      port: 443,
+      path: backendPath + requestUrl.search,
+      method: req.method,
+      headers
+    }, upstreamRes => {
+      res.writeHead(upstreamRes.statusCode || 502, upstreamRes.headers);
+      upstreamRes.pipe(res);
+    });
+    upstream.on('error', () => {
+      if (!res.headersSent) res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end('{"error":"backend_unavailable"}');
+    });
+    req.pipe(upstream);
+    return;
+  }
 
   // Bloquear path traversal
   if (urlPath.includes('..')) {
