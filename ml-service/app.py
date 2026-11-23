@@ -21,7 +21,7 @@ ALLOWED_ORIGINS = [
     item.strip()
     for item in os.environ.get(
         "ALLOWED_ORIGINS",
-        "https://octavio-cmd.github.io,http://localhost:3000",
+        "https://octavio-cmd.github.io,https://savvy-photo-app-v2-beta-production.up.railway.app,http://localhost:3000",
     ).split(",")
     if item.strip()
 ]
