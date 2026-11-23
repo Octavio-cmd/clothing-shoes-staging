@@ -94,6 +94,7 @@ test('photo pipeline — preserves the official BiRefNet HR alpha matte', () => 
   const fn = app.slice(start, end);
   assert.match(fn, /workerRes\.headers\.get\('X-Savvy-Engine'\)/);
   assert.match(fn, /BiRefNet_HR-matting/);
+  assert.match(fn, /REMBG_PROCESSOR\\.includes\\('background-engine-v2-beta'\\)/);
   assert.match(fn, /preserveNativeMatte/);
 });
 
