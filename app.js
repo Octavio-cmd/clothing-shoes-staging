@@ -5989,7 +5989,7 @@ function clTakePhoto(slotId) {
           console.log('📤 Sending to image processor...');
           
           const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-          const rembgTimeout = controller ? setTimeout(() => controller.abort(), 30000) : null;
+          const rembgTimeout = controller ? setTimeout(() => controller.abort(), 120000) : null;
           let workerRes;
           try {
             // El valor global del servidor es 1.25. En productos blancos ese
