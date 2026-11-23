@@ -29,7 +29,7 @@ def test_health_does_not_force_model_download() -> None:
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["ok"] is True
-    assert response.json()["engine"] == "PramaLLC/BEN2"
+    assert response.json()["engine"] == "ZhengPeng7/BiRefNet_HR-matting"
 
 
 def test_remove_bg_returns_rgba_png_and_metadata(monkeypatch) -> None:
@@ -48,7 +48,7 @@ def test_remove_bg_returns_rgba_png_and_metadata(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
-    assert response.headers["x-savvy-engine"] == "PramaLLC/BEN2"
+    assert response.headers["x-savvy-engine"] == "ZhengPeng7/BiRefNet_HR-matting"
     assert response.headers["x-savvy-source-width"] == "8"
     assert response.headers["x-savvy-source-height"] == "6"
     assert captured["refine"] is True
