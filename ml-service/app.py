@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 import time
+import base64
+import binascii
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from PIL import Image, UnidentifiedImageError
 
 from engine import MODEL_REVISION, BackgroundEngine
@@ -55,14 +57,28 @@ def health() -> dict[str, object]:
 
 @app.post("/remove-bg")
 async def remove_background(
-    file: UploadFile = File(...),
+    request: Request,
+    file: UploadFile | None = File(None),
     refine: bool = Query(False),
 ) -> Response:
-    content_type = (file.content_type or "").lower()
-    if content_type not in {"image/jpeg", "image/png", "image/webp"}:
-        raise HTTPException(415, "Supported formats: JPEG, PNG, or WebP")
+    wants_json = file is None
+    if file is not None:
+        content_type = (file.content_type or "").lower()
+        if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+            raise HTTPException(415, "Supported formats: JPEG, PNG, or WebP")
+        source = await file.read(MAX_UPLOAD_BYTES + 1)
+    else:
+        try:
+            payload = await request.json()
+            encoded = payload.get("image", "")
+            if not isinstance(encoded, str):
+                raise ValueError
+            if encoded.startswith("data:"):
+                encoded = encoded.split(",", 1)[1]
+            source = base64.b64decode(encoded, validate=True)
+        except (ValueError, KeyError, binascii.Error, UnicodeError) as exc:
+            raise HTTPException(400, "A valid base64 image is required") from exc
 
-    source = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(source) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "Image exceeds the upload limit")
     if not source:
@@ -75,15 +91,17 @@ async def remove_background(
         raise HTTPException(400, "Invalid or unsupported image") from exc
 
     elapsed_ms = round((time.perf_counter() - started) * 1000)
-    return Response(
-        content=result.png,
-        media_type="image/png",
-        headers={
+    headers = {
             "Cache-Control": "no-store",
             "X-Savvy-Engine": engine.model_id,
             "X-Savvy-Processing-Ms": str(elapsed_ms),
             "X-Savvy-Source-Width": str(result.width),
             "X-Savvy-Source-Height": str(result.height),
-        },
-    )
+        }
+    if wants_json:
+        return JSONResponse(
+            {"success": True, "image": base64.b64encode(result.png).decode("ascii"), "mime": "image/png", "format": "png"},
+            headers=headers,
+        )
+    return Response(content=result.png, media_type="image/png", headers=headers)
 
