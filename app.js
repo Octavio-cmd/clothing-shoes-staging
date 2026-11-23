@@ -5785,7 +5785,7 @@ function clRenderPhotos() {
 // 1. Detect product bounding box (non-transparent pixels)
 // 2. Crop to product
 // 3. Center on white 1200x1200 canvas with padding
-function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl) {
+function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl, preserveNativeMatte=false) {
   return new Promise(resolve => {
     let settled = false;
     const finish = value => {
@@ -5812,6 +5812,33 @@ function applyWhiteSquare(dataUrl, size=1600, fallbackUrl=dataUrl) {
         // Llenar fondo blanco
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, size, size);
+
+        // BiRefNet HR ya produce un alpha matte de alta resolucion. Conservarlo
+        // sin los umbrales heredados de IS-Net/BEN2 evita morder franjas,
+        // costuras y agujetas blancas.
+        if (preserveNativeMatte) {
+          const raw = document.createElement('canvas');
+          raw.width = img.width; raw.height = img.height;
+          const rawCtx = raw.getContext('2d');
+          rawCtx.drawImage(img, 0, 0);
+          const rawPx = rawCtx.getImageData(0, 0, img.width, img.height).data;
+          let x0=img.width, x1=0, y0=img.height, y1=0;
+          for (let y=0; y<img.height; y++) for (let x=0; x<img.width; x++) {
+            if (rawPx[(y*img.width+x)*4+3] > 5) {
+              if (x<x0) x0=x; if (x>x1) x1=x;
+              if (y<y0) y0=y; if (y>y1) y1=y;
+            }
+          }
+          if (x0>=x1 || y0>=y1) { x0=0; x1=img.width; y0=0; y1=img.height; }
+          const cropW=x1-x0, cropH=y1-y0;
+          const pad=size*0.06, maxSide=size-pad*2;
+          const ratio=Math.min(maxSide/cropW, maxSide/cropH);
+          const dW=cropW*ratio, dH=cropH*ratio;
+          ctx.drawImage(raw, x0, y0, cropW, cropH,
+            (size-dW)/2, (size-dH)/2, dW, dH);
+          finish(canvas.toDataURL('image/jpeg', 0.94));
+          return;
+        }
 
         // El procesador puede devolver un JPEG ya recortado y compuesto. En
         // ese caso solo se centra en el lienzo cuadrado: no volver a alterar
@@ -6008,6 +6035,7 @@ function clTakePhoto(slotId) {
               signal: controller ? controller.signal : undefined
             });
             if (!workerRes.ok) throw new Error('Direct BEN2 error ' + workerRes.status);
+            const outputEngine = workerRes.headers.get('X-Savvy-Engine') || '';
             const outputBlob = await workerRes.blob();
             processedUrl = await new Promise((resolveDataUrl, rejectDataUrl) => {
               const reader = new FileReader();
@@ -6015,6 +6043,7 @@ function clTakePhoto(slotId) {
               reader.onerror = () => rejectDataUrl(new Error('BEN2 response could not be read'));
               reader.readAsDataURL(outputBlob);
             });
+            workerRes.savvyEngine = outputEngine;
           } else try {
             // El valor global del servidor es 1.25. En productos blancos ese
             // brillo extra quema costuras y relieves; esta solicitud usa 1.0.
@@ -6055,7 +6084,8 @@ function clTakePhoto(slotId) {
             if (slot) slot.innerHTML = '<div style="text-align:center;padding:20px"><div class="sp" style="width:28px;height:28px;margin:0 auto 8px"></div><div style="font-size:11px;color:var(--gd)">Applying white background...</div></div>';
             
             // Intentar aplicar fondo blanco
-            const whiteSquareUrl = await applyWhiteSquare(processedUrl, 1600, dataUrl);
+            const preserveNativeMatte = /BiRefNet_HR-matting/i.test(workerRes.savvyEngine || '');
+            const whiteSquareUrl = await applyWhiteSquare(processedUrl, 1600, dataUrl, preserveNativeMatte);
             
             // Si applyWhiteSquare retorna algo vacío o inválido, usa PNG directamente
             if (whiteSquareUrl && whiteSquareUrl.length > 100) {
