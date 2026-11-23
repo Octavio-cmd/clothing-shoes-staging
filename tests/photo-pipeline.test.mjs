@@ -8,6 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const engine = fs.readFileSync(path.join(root, 'ml-service', 'engine.py'), 'utf8');
 
 test('photo pipeline — never manufactures a blank white fallback', () => {
   const start = app.indexOf('function applyWhiteSquare');
@@ -94,6 +95,11 @@ test('photo pipeline — preserves the official BiRefNet HR alpha matte', () => 
   assert.match(fn, /workerRes\.headers\.get\('X-Savvy-Engine'\)/);
   assert.match(fn, /BiRefNet_HR-matting/);
   assert.match(fn, /preserveNativeMatte/);
+});
+
+test('BiRefNet engine — uses float32 consistently on CPU', () => {
+  assert.match(engine, /\\.to\\(self\\._device\\)\\.float\\(\\)\\.eval\\(\\)/);
+  assert.match(engine, /dtype=torch\\.float32/);
 });
 
 test('photo pipeline — restores detail only on predominantly light products', () => {
