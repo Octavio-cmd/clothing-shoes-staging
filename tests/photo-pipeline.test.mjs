@@ -53,7 +53,7 @@ test('photo UI — previews preserve the entire garment or shoe', () => {
 });
 
 test('photo deployment — app.js cache key is bumped for employee devices', () => {
-  assert.match(html, /app\.js\?v=20261121-photo-fix-10/);
+  assert.match(html, /app\.js\?v=20261123-ben2-beta-1/);
 });
 
 test('photo pipeline — requests neutral brightness and a repairable PNG mask', () => {
