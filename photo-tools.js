@@ -99,14 +99,19 @@
 
   async function refineCutout(sourceUrl, cutoutUrl) {
     const [source, cutout] = await Promise.all([loadImage(sourceUrl), loadImage(cutoutUrl)]);
-    if (source.naturalWidth !== cutout.naturalWidth || source.naturalHeight !== cutout.naturalHeight) {
+    const sourceRatio = source.naturalWidth / source.naturalHeight;
+    const cutoutRatio = cutout.naturalWidth / cutout.naturalHeight;
+    const ratioError = Math.abs(sourceRatio - cutoutRatio) / Math.max(sourceRatio, cutoutRatio);
+    // Los servicios pueden reducir la resolucion manteniendo el encuadre. Eso
+    // es alineable. Solo rechazamos cambios reales de proporcion o recortes.
+    if (ratioError > 0.006) {
       return {url: cutoutUrl, metrics: {reviewRequired: true, reason: 'source-mismatch'}};
     }
     const width = cutout.naturalWidth, height = cutout.naturalHeight;
     const sourceCanvas = document.createElement('canvas');
     sourceCanvas.width = width; sourceCanvas.height = height;
     const sourceCtx = sourceCanvas.getContext('2d', {willReadFrequently: true});
-    sourceCtx.drawImage(source, 0, 0);
+    sourceCtx.drawImage(source, 0, 0, width, height);
     const sourceData = sourceCtx.getImageData(0, 0, width, height);
     const cutCanvas = document.createElement('canvas');
     cutCanvas.width = width; cutCanvas.height = height;
